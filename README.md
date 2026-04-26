@@ -6,6 +6,56 @@ NestJS backend for:
 - receiving temperature readings from MQTT
 - broadcasting matched readings over Socket.IO
 
+## Stack
+
+- NestJS 11
+- MariaDB 11.4
+- MQTT via Eclipse Mosquitto 2.0
+- Docker multi-stage production image
+- GitHub Actions CI with GHCR image publishing
+
+## Run With Docker Compose
+
+Create a local env file first:
+
+```bash
+cp .env.example .env
+```
+
+Start the backend, MariaDB, and MQTT broker together:
+
+```bash
+docker compose up --build
+```
+
+Services:
+
+- API: `http://localhost:3000`
+- MariaDB: `localhost:3306`
+- MQTT broker: `mqtt://localhost:1883`
+
+Notes:
+
+- Backend and MariaDB read their environment settings from the project-level `.env` file.
+- The compose stack creates the `iot_backend` database automatically.
+- The `devices` table is initialized from [`docker/mariadb/init/01-schema.sql`](docker/mariadb/init/01-schema.sql).
+- The example values in `.env.example` are set for the Docker Compose network, so `DB_HOST=mariadb` and `MQTT_URL=mqtt://mqtt:1883`.
+- The backend container exposes a health endpoint at `GET /health`, which is used by Docker Compose.
+
+## Build The Docker Image
+
+Build the production image locally:
+
+```bash
+docker build -t iot-backend .
+```
+
+Run it against your own database and MQTT broker:
+
+```bash
+docker run --rm -p 3000:3000 --env-file .env iot-backend
+```
+
 ## Quick Demo
 
 ### 1. Install dependencies
@@ -24,17 +74,23 @@ You need:
 
 ### 3. Set environment variables
 
-Example:
+You can start from the provided example file:
 
 ```bash
-export PORT=3000
-export DB_HOST=localhost
-export DB_PORT=3306
-export DB_USERNAME=root
-export DB_PASSWORD=
-export DB_NAME=iot_backend
-export MQTT_URL=mqtt://localhost:1883
-export MQTT_TOPIC=devices/temperature
+cp .env.example .env
+```
+
+For a local non-Docker run, update the copied `.env` values so they point to services on your machine, for example:
+
+```bash
+PORT=3000
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=
+DB_NAME=iot_backend
+MQTT_URL=mqtt://localhost:1883
+MQTT_TOPIC=devices/temperature
 ```
 
 ### 4. Create the database table
@@ -121,6 +177,8 @@ If the device serial exists in MariaDB, the backend emits a `device-reading` Web
 
 ### Data
 
+- `GET /`
+- `GET /health`
 - `GET /data/status`
 
 ### Devices
@@ -163,10 +221,20 @@ Payload shape:
 ```bash
 npm run start
 npm run start:dev
+npm run start:prod
 npm run build
+npm run lint
 npm run test
+npm run test:cov
 npm run test:e2e
 ```
+
+## CI/CD
+
+GitHub Actions is defined in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+- On every pull request, the workflow installs dependencies and runs `npm test -- --runInBand`.
+- On pushes to `main`, it also builds and pushes a Docker image to `ghcr.io/<owner>/<repo>:latest`.
 
 ## Notes
 

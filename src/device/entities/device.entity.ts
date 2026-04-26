@@ -24,7 +24,7 @@ export class Device {
   firmwareVersion: string;
 
   @Column({ length: 120, nullable: true })
-  location?: string | null;
+  location: string;
 
   @CreateDateColumn()
   createdAt: Date;
